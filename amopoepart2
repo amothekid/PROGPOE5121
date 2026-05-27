@@ -1,0 +1,233 @@
+package com.mycompany.PoereGISTRATION1;
+
+import java.util.Scanner;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import java.io.*;
+import java.util.*;
+
+public class PoereGISTRATION1 {
+    public static void main(String[] args) {
+        Scanner scan = new Scanner(System.in);
+
+        // --- First name and last name ---
+        System.out.print("Enter first name: ");
+        String firstname = scan.nextLine();
+
+        System.out.print("Enter last name: ");
+        String lastname = scan.nextLine();
+
+        // --- Username validation ---
+        String username;
+        do {
+            System.out.print("Enter username (must contain '_' and <= 5 chars): ");
+            username = scan.nextLine();
+
+            if (!(username.contains("_") && username.length() <= 5)) {
+                System.out.println("Username is not correctly formatted; please ensure it contains an underscore and is no more than 5 characters.");
+            } else {
+                System.out.println(" Username successfully captured.");
+            }
+        } while (!(username.contains("_") && username.length() <= 5));
+
+        // --- Password validation ---
+        String password;
+        do {
+            System.out.print("Enter password (>=8 chars, uppercase, digit, special char): ");
+            password = scan.nextLine();
+
+            boolean hasUppercase = password.matches(".*[A-Z].*");
+            boolean hasDigit = password.matches(".*[0-9].*");
+            boolean hasSpecial = password.matches(".*[^a-zA-Z0-9].*");
+
+            if (!(password.length() >= 8 && hasUppercase && hasDigit && hasSpecial)) {
+                System.out.println("Password is not correctly formatted; please ensure it has at least 8 characters, a capital letter, a number, and a special character.");
+            } else {
+                System.out.println(" Password successfully captured.");
+            }
+        } while (!(password.length() >= 8 && password.matches(".*[A-Z].*") &&
+                   password.matches(".*[0-9].*") && password.matches(".*[^a-zA-Z0-9].*")));
+
+        // --- Cell phone validation ---
+        String Phonenumber;
+        do {
+            System.out.print("Enter phone number (+27XXXXXXXXX): ");
+            Phonenumber = scan.nextLine();
+
+            boolean validPhone = Phonenumber.startsWith("+27") && Phonenumber.length() == 12 && Phonenumber.substring(1).matches("\\d+");
+
+            if (!validPhone) {
+                System.out.println(" Cell phone number incorrectly formatted or missing international code. Please try again.");
+            } else {
+                String local = "0" + Phonenumber.substring(3);
+                System.out.println("Cell phone number successfully added: " + local);
+            }
+        } while (!(Phonenumber.startsWith("+27") && Phonenumber.length() == 12 && Phonenumber.substring(1).matches("\\d+")));
+
+        System.out.println(" Registration complete!");
+
+        // --- Create poelogin object ---
+        poelogin user = new poelogin(Phonenumber, password, username, lastname, firstname);
+
+        System.out.println(user.checkUserName());
+        System.out.println(user.checkPassword());
+
+        // --- Login ---
+        System.out.println("Login:");
+System.out.print("Enter username: ");
+String loginUser = scan.nextLine();
+
+System.out.print("Enter password: ");
+String loginPass = scan.nextLine();
+// First check with boolean method
+boolean isLoggedIn = user.loginUser(loginUser, loginPass);
+
+// Then get the message string
+String loginStatus = user.returnLoginStatus(loginUser, loginPass);
+
+// Print the message
+System.out.println(loginStatus);
+
+if (isLoggedIn) {
+    // If true, continue into QuickChat
+    System.out.println("\nWelcome to QuickChat.");
+    // menu loop continues...
+}
+      
+   
+            // --- Ask how many messages upfront ---
+            System.out.print("How many messages would you like to send? ");
+            int totalMessages = scan.nextInt();
+            scan.nextLine();
+
+            int sentCount = 0;
+
+            // --- Setup Gson and JSON file ---
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            File messageFile = new File("messages.json");
+            List<MessageSystem> messages = new ArrayList<>();
+
+            if (messageFile.exists()) {
+                try (Reader reader = new FileReader(messageFile)) {
+                    messages = gson.fromJson(reader, new TypeToken<List<MessageSystem>>(){}.getType());
+                    if (messages == null) messages = new ArrayList<>();
+                } catch (IOException e) {
+                    System.out.println("Error reading messages: " + e.getMessage());
+                }
+            }
+
+            int option;
+            do {
+                System.out.println("\nPlease choose an option:");
+                System.out.println("1) Send Messages");
+                System.out.println("2) Show recently sent messages");
+                System.out.println("3) Quit");
+                System.out.print("Enter choice: ");
+                option = scan.nextInt();
+                scan.nextLine();
+
+                switch (option) {
+                    case 1:
+                        if (sentCount < totalMessages) {
+                            System.out.print("Enter recipient number: ");
+                            String recipient = scan.nextLine();
+
+                            System.out.print("Enter message text (max 250 chars): ");
+                            String text = scan.nextLine();
+
+                            MessageSystem msg = new MessageSystem(messages.size() + 1, recipient, text);
+
+                            if (!msg.validateRecipient()) {
+                                System.out.println("Invalid recipient number.");
+                            } else {
+                                System.out.println(msg.validateMessage());
+
+                                System.out.println("Choose option: 1 = Send, 0 = Disregard, 2 = Store");
+                                int choice = scan.nextInt();
+                                scan.nextLine();
+
+                                msg.SentMessage(choice);
+
+                                System.out.println("\nMessage Status: " + msg.getStatus());
+                                System.out.println("Message ID: " + msg.getUniqueId());
+                                System.out.println("Message Hash: " + msg.getHash());
+                                System.out.println("Message Text: " + msg.getText());
+
+                                // Save to JSON
+                                messages.add(msg);
+                                try (Writer writer = new FileWriter(messageFile)) {
+                                    gson.toJson(messages, writer);
+                                } catch (IOException e) {
+                                    System.out.println("Error writing messages: " + e.getMessage());
+                                }
+
+                                sentCount++;
+                                System.out.println(" You have sent " + sentCount + " of " + totalMessages + " messages.");
+                            }
+                        } else {
+                            System.out.println("⚠️You have reached the maximum number of messages (" + totalMessages + ").");
+                        }
+                        break;
+
+                    case 2:
+                        if (messages.isEmpty()) {
+                            System.out.println("No messages have been sent yet.");
+                        } else {
+                            System.out.println("\nRecently sent messages:");
+                            for (MessageSystem m : messages) {
+                                System.out.println("ID: " + m.getUniqueId() +
+                                                   " | Status: " + m.getStatus() +
+                                                   " | Text: " + m.getText());
+                            }
+                        }
+                        break;
+
+                    case 3:
+                        System.out.println("Exiting QuickChat.");
+                        break;
+
+                    default:
+           System.out.println("❌ Invalid option. Please try again.");
+                }
+            } while (option != 3);
+        
+
+        scan.close();
+    
+            System.out.print("Enter recipient number: ");
+            String recipient = scan.nextLine();
+
+            System.out.print("Enter message text (max 250 chars): ");
+            String text = scan.nextLine();
+
+            MessageSystem msg = new MessageSystem(1, recipient, text);
+
+            if (!msg.validateRecipient()) {
+                System.out.println(" Invalid recipient number.");
+            } else {
+                System.out.println(msg.validateMessage());
+
+                System.out.println("Choose option: 1 = Send, 0 = Disregard, 2 = Store");
+                int choice = scan.nextInt();
+                scan.nextLine();
+
+                msg.SentMessage(choice);
+
+                System.out.println("\nMessage Status: " + msg.getStatus());
+                System.out.println("Message ID: " + msg.getUniqueId());
+                System.out.println("Message Hash: " + msg.getHash());
+                System.out.println("Message Text: " + msg.getText());
+
+                System.out.println("\nAll messages:");
+                System.out.println(msg.printMessages());
+                System.out.println("Total messages sent: " + msg.returnTotalMessages());
+            }
+        
+
+        scan.close();
+    }
+}
+
+
+
